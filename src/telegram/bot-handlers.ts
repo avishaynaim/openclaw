@@ -1227,6 +1227,7 @@ export const registerTelegramHandlers = ({
       sendOversizeWarning: false,
       oversizeLogMessage: "channel post media exceeds size limit",
       errorMessage: "channel_post handler failed",
+      forceWasMentioned: true,
     });
   });
 };
