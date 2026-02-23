@@ -482,7 +482,9 @@ export const buildTelegramMessageContext = async ({
     commandAuthorized,
   });
   const effectiveWasMentioned = mentionGate.effectiveWasMentioned;
-  if (isGroup && requireMention && canDetectMention) {
+  // Skip mention gating for channel posts (bot senders) to enable bot-to-bot communication
+  const isBotSender = msg.from?.is_bot === true;
+  if (isGroup && requireMention && canDetectMention && !isBotSender) {
     if (mentionGate.shouldSkip) {
       logger.info({ chatId, reason: "no-mention" }, "skipping group message");
       recordPendingHistoryEntryIfEnabled({
