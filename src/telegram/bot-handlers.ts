@@ -111,6 +111,7 @@ export const registerTelegramHandlers = ({
     storeAllowFrom: string[];
     debounceKey: string | null;
     botUsername?: string;
+    forceWasMentioned?: boolean;
   };
   const buildSyntheticTextMessage = (params: {
     base: Message;
@@ -155,7 +156,12 @@ export const registerTelegramHandlers = ({
         return;
       }
       if (entries.length === 1) {
-        await processMessage(last.ctx, last.allMedia, last.storeAllowFrom);
+        await processMessage(
+          last.ctx,
+          last.allMedia,
+          last.storeAllowFrom,
+          last.forceWasMentioned ? { forceWasMentioned: true } : undefined,
+        );
         return;
       }
       const combinedText = entries
@@ -173,11 +179,17 @@ export const registerTelegramHandlers = ({
         date: last.msg.date ?? first.msg.date,
       });
       const messageIdOverride = last.msg.message_id ? String(last.msg.message_id) : undefined;
+      const forceWasMentioned = entries.some((e) => e.forceWasMentioned);
       await processMessage(
         buildSyntheticContext(baseCtx, syntheticMessage),
         [],
         first.storeAllowFrom,
-        messageIdOverride ? { messageIdOverride } : undefined,
+        messageIdOverride || forceWasMentioned
+          ? {
+              ...(messageIdOverride ? { messageIdOverride } : {}),
+              ...(forceWasMentioned ? { forceWasMentioned: true } : {}),
+            }
+          : undefined,
       );
     },
     onError: (err) => {
@@ -552,6 +564,7 @@ export const registerTelegramHandlers = ({
     storeAllowFrom: string[];
     sendOversizeWarning: boolean;
     oversizeLogMessage: string;
+    forceWasMentioned?: boolean;
   }) => {
     const {
       ctx,
@@ -712,6 +725,7 @@ export const registerTelegramHandlers = ({
       storeAllowFrom,
       debounceKey,
       botUsername: ctx.me?.username,
+      forceWasMentioned: params.forceWasMentioned,
     });
   };
   bot.on("callback_query", async (ctx) => {
@@ -1078,6 +1092,7 @@ export const registerTelegramHandlers = ({
     sendOversizeWarning: boolean;
     oversizeLogMessage: string;
     errorMessage: string;
+    forceWasMentioned?: boolean;
   };
 
   const handleInboundMessageLike = async (event: InboundTelegramEvent) => {
@@ -1133,6 +1148,7 @@ export const registerTelegramHandlers = ({
         storeAllowFrom,
         sendOversizeWarning: event.sendOversizeWarning,
         oversizeLogMessage: event.oversizeLogMessage,
+        forceWasMentioned: event.forceWasMentioned,
       });
     } catch (err) {
       runtime.error?.(danger(`${event.errorMessage}: ${String(err)}`));
@@ -1207,10 +1223,11 @@ export const registerTelegramHandlers = ({
             ? String(post.from.id)
             : "",
       senderUsername: post.sender_chat?.username ?? post.from?.username ?? "",
-      requireConfiguredGroup: true,
+      requireConfiguredGroup: false,
       sendOversizeWarning: false,
       oversizeLogMessage: "channel post media exceeds size limit",
       errorMessage: "channel_post handler failed",
+      forceWasMentioned: true,
     });
   });
 };
